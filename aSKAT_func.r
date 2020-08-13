@@ -33,16 +33,16 @@ aSKAT_bfile<-function(prefix, SNPSetID, significance_level = 0.05 / 20000, ID="j
   phenotype<-Read_Plink_FAM(bfile[3])[,6]
   flag<-FALSE
   if(!is.na(covariate)){
-     flag<-TRUE
-     fam<-Read_Plink_FAM(bfile[3])
-     covariate<-t(sapply(scan(covariate,"character",sep="\n"), function(x) strsplit(x, " ")[[1]]))
-     covariate<-covariate[match(fam[,1],covariate[,1]),][,-c(1)]
-     covariate<-apply(covariate, 2, function(x) as.numeric(x))
+    flag<-TRUE
+    #fam<-Read_Plink_FAM(bfile[3])
+    #covariate<-t(sapply(scan(covariate,"character",sep="\n"), function(x) strsplit(x, " ")[[1]]))
+    #covariate<-covariate[match(fam[,1],covariate[,1]),][,-c(1)]
+    #covariate<-apply(covariate, 2, function(x) as.numeric(x))
   }
   print(phenotype)
   sInfo<-Open_SSD(SSD, INFO)
   setIndex<-sInfo$SetInfo[,1]
-    
+  
   ###Continue / Binary###
   if(length(unique(phenotype))>2){
     type<-"C"
@@ -53,10 +53,10 @@ aSKAT_bfile<-function(prefix, SNPSetID, significance_level = 0.05 / 20000, ID="j
   ###Main###
   if(!flag){
     obj<-SKAT_Null_Model(phenotype ~ 1, out_type=type, n.Resampling=0, 
-      type.Resampling="bootstrap", Adjustment=TRUE)
+                         type.Resampling="bootstrap", Adjustment=TRUE)
   }else{
     obj<-SKAT_Null_Model(phenotype ~ covariate, out_type=type, n.Resampling=0, 
-      type.Resampling="bootstrap", Adjustment=TRUE)
+                         type.Resampling="bootstrap", Adjustment=TRUE)
   }
   result<-SKAT.SSD.All(sInfo, obj)
   to_be_evaluated<-ifelse(result$results$P.value < 0.5, 0, 1)
@@ -73,10 +73,10 @@ aSKAT_bfile<-function(prefix, SNPSetID, significance_level = 0.05 / 20000, ID="j
     print(paste0("------",n_times,"------"))
     if(!flag){
       obj<-SKAT_Null_Model(phenotype ~ 1, out_type=type, n.Resampling=n.res, 
-        type.Resampling="bootstrap", Adjustment=TRUE)
+                           type.Resampling="bootstrap", Adjustment=TRUE)
     }else{
       obj<-SKAT_Null_Model(phenotype ~ covariate, out_type=type, n.Resampling=n.res, 
-        type.Resampling="bootstrap", Adjustment=TRUE)
+                           type.Resampling="bootstrap", Adjustment=TRUE)
     }
     th_2<-which(dnbinom(0, seq(1:100), .05) < conf_2)[1]
     
@@ -89,13 +89,12 @@ aSKAT_bfile<-function(prefix, SNPSetID, significance_level = 0.05 / 20000, ID="j
                       library(SKAT)
                       sInfo_<-Open_SSD(SSD_, INFO_)
                       setIndex_<-sInfo_$SetInfo[,1]
-                      p_i <- pvalues_[[i]]
                       r_i <- result_$results[i,2]
                       t_i <- to_be_evaluated_[i]
                       if(to_be_evaluated_[i]==0){
                         temp<-SKAT.SSD.OneSet_SetIndex(sInfo_, setIndex_[i], obj_)
-                        p_i<-c(pvalues_[[i]], temp$p.value.resampling) #pvalues_[[i]]
-                        if(current_count_==0){p_i<-pvalues_[[i]][-c(1)]} # pvalues_[[i]]
+                        pvalues_[[i]]<-c(pvalues_[[i]], temp$p.value.resampling) 
+                        if(current_count_==0){pvalues_[[i]]<-pvalues_[[i]][-c(1)]} 
                         r_i<-Get_Resampling_Pvalue_1(temp$p.value, pvalues_[[i]])$p.value #result_$results[i,2]
                         if(temp$p.value==1){r_i<-temp$p.value}
                         
@@ -119,45 +118,44 @@ aSKAT_bfile<-function(prefix, SNPSetID, significance_level = 0.05 / 20000, ID="j
                         current_count_<-length(pvalues_[[i]])
                       }
                       Close_SSD()
-                      return(c(i,p_i,r_i,t_i,current_count_))
+                      return(c(i,r_i,t_i,current_count_))
                     })
     stopCluster(cl)
-    for(i in pl){
-      pvalues[[i[1]]] <- i[2]
-      result$results[i[1],2] <- i[3]
-      to_be_evaluated[i[1]] <- i[4]
-      current_count <- i[5]
+    for(ii in pl){
+      result$results[ii[1],2] <- ii[2]
+      to_be_evaluated[ii[1]] <- ii[3]
+      current_count <- ii[4]
     }
     
     
-  #   for(i in 1:length(to_be_evaluated)){
-  #     if(to_be_evaluated[i]==0){
-  #       temp<-SKAT.SSD.OneSet_SetIndex(sInfo, setIndex[i], obj)
-  # 	    pvalues[[i]]<-c(pvalues[[i]], temp$p.value.resampling)
-  # 	    if(current_count==0) pvalues[[i]]<-pvalues[[i]][-c(1)]
-  # 	    result$results[i,2]<-Get_Resampling_Pvalue_1(temp$p.value, pvalues[[i]])$p.value
-  #       if(temp$p.value==1) result$results[i,2]<-temp$p.value
-  # 
-  # 	    #Stop Criterion: 1
-  # 	    if(length(which(temp$p.value > pvalues[[i]][1:th_2])) == th_2){
-  # 	      to_be_evaluated[i]<-1
-  # 	      #Stop Criterion: 2
-  # 	    }else if(length(which(temp$p.value < pvalues[[i]])) == length(pvalues[[i]])){
-  # 	      if(dnbinom(0, length(pvalues[[i]]), (1 - significance_level)) < conf_2){
-  # 	        to_be_evaluated[i]<-1
-  # 	        result$results[i,2]<-1/(length(pvalues[[i]]) + 1)
-  # 	      }
-  # 	      #Stop Criterion: 3
-  # 	    }else{
-  # 	      dif<-qnorm(p = conf_1, mean = 0,
-  # 	                 sd = sqrt(result$results[i,2] * (1 - result$results[i,2]) / length(pvalues[[i]])))
-  # 	      if(result$results[i,2] + dif > significance_level | result$results[i,2] - dif < significance_level){
-  # 	        to_be_evaluated[i]<-1
-  # 	      }
-  # 	    }
-  # 	    current_count<-length(pvalues[[i]])
-  #     }
-  #   }
+    #   for(i in 1:length(to_be_evaluated)){
+    #     if(to_be_evaluated[i]==0){
+    #       temp<-SKAT.SSD.OneSet_SetIndex(sInfo, setIndex[i], obj)
+    # 	    pvalues[[i]]<-c(pvalues[[i]], temp$p.value.resampling)
+    # 	    if(current_count==0) pvalues[[i]]<-pvalues[[i]][-c(1)]
+    # 	    result$results[i,2]<-Get_Resampling_Pvalue_1(temp$p.value, pvalues[[i]])$p.value
+    #       if(temp$p.value==1) result$results[i,2]<-temp$p.value
+    # 
+    # 	    #Stop Criterion: 1
+    # 	    if(length(which(temp$p.value > pvalues[[i]][1:th_2])) == th_2){
+    # 	      to_be_evaluated[i]<-1
+    # 	      #Stop Criterion: 2
+    # 	    }else if(length(which(temp$p.value < pvalues[[i]])) == length(pvalues[[i]])){
+    # 	      if(dnbinom(0, length(pvalues[[i]]), (1 - significance_level)) < conf_2){
+    # 	        to_be_evaluated[i]<-1
+    # 	        result$results[i,2]<-1/(length(pvalues[[i]]) + 1)
+    # 	      }
+    # 	      #Stop Criterion: 3
+    # 	    }else{
+    # 	      dif<-qnorm(p = conf_1, mean = 0,
+    # 	                 sd = sqrt(result$results[i,2] * (1 - result$results[i,2]) / length(pvalues[[i]])))
+    # 	      if(result$results[i,2] + dif > significance_level | result$results[i,2] - dif < significance_level){
+    # 	        to_be_evaluated[i]<-1
+    # 	      }
+    # 	    }
+    # 	    current_count<-length(pvalues[[i]])
+    #     }
+    #   }
     gc();gc();
   }
   
@@ -213,7 +211,7 @@ aSKAT_matrix<-function(geno_matrix, phenotype, significance_level, ID, n.maxres,
     }
     pvalues<-c(pvalues, perm$p.value.resampling)
     result<-Get_Resampling_Pvalue_1(out$p.value, pvalues)$p.value
-
+    
     #Stop Criterion: 1
     if(length(which(out$p.value > pvalues[1:th_2])) == th_2){
       break
