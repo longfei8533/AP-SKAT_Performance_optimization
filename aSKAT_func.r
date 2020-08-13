@@ -34,10 +34,10 @@ aSKAT_bfile<-function(prefix, SNPSetID, significance_level = 0.05 / 20000, ID="j
   flag<-FALSE
   if(!is.na(covariate)){
     flag<-TRUE
-    #fam<-Read_Plink_FAM(bfile[3])
-    #covariate<-t(sapply(scan(covariate,"character",sep="\n"), function(x) strsplit(x, " ")[[1]]))
-    #covariate<-covariate[match(fam[,1],covariate[,1]),][,-c(1)]
-    #covariate<-apply(covariate, 2, function(x) as.numeric(x))
+    fam<-Read_Plink_FAM(bfile[3])
+    covariate<-t(sapply(scan(covariate,"character",sep="\n"), function(x) strsplit(x, " ")[[1]]))
+    covariate<-covariate[match(fam[,1],covariate[,1]),][,-c(1)]
+    covariate<-apply(covariate, 2, function(x) as.numeric(x))
   }
   print(phenotype)
   sInfo<-Open_SSD(SSD, INFO)
